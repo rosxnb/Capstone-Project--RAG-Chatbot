@@ -10,3 +10,4 @@ wheels/
 .venv
 scraped_data
 processed*
+vector_store
