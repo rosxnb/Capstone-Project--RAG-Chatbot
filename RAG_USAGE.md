@@ -11,7 +11,7 @@ Keep `.env` in the repo root with your keys (e.g., `GROQ_API_KEY`, `OPENAI_API_K
 ---
 
 ### 1) Preprocess & Translate
-Script: `translator/preprocess.py`
+Script: `scripts/preprocess.py`
 
 Purpose: extract text from txt/html/docx/pdf/images, detect Nepali (`langdetect`), translate Nepali to English (Groq or OpenAI), and write normalized JSONL.
 
@@ -28,13 +28,13 @@ Key flags:
 Examples:
 ```
 # Fresh run (Groq)
-python3 translator/preprocess.py --root scraped_data --translator groq --ocr-pdf-pages 3 --output processed_data/english_documents.jsonl
+python3 scripts/preprocess.py --root scraped_data --translator groq --ocr-pdf-pages 3 --output processed_data/english_documents.jsonl
 
 # Quick dry run of 10 files
-python3 translator/preprocess.py --root scraped_data --translator groq --limit 10 --output processed_data/sample.jsonl
+python3 scripts/preprocess.py --root scraped_data --translator groq --limit 10 --output processed_data/sample.jsonl
 
 # Resume after a rate limit (e.g., stopped at 442)
-python3 translator/preprocess.py --root scraped_data --translator groq --start-index 442 --append --output processed_data/english_documents.jsonl
+python3 scripts/preprocess.py --root scraped_data --translator groq --start-index 442 --append --output processed_data/english_documents.jsonl
 ```
 
 Notes:
@@ -45,7 +45,7 @@ Notes:
 ---
 
 ### 2) Embed into FAISS
-Script: `translator/embed.py`
+Script: `scripts/embed.py`
 
 Purpose: chunk processed docs, embed with SentenceTransformers, normalize, and store in FAISS + metadata JSONL.
 
@@ -59,7 +59,7 @@ Key flags:
 
 Example:
 ```
-python3 translator/embed.py \
+python3 scripts/embed.py \
   --input processed_data/english_documents.jsonl \
   --output-dir vector_store/faiss \
   --embedding-model sentence-transformers/all-MiniLM-L6-v2 \
@@ -73,7 +73,7 @@ Output:
 ---
 
 ### 3) Inspect Similarity Search
-Script: `translator/query.py`
+Script: `scripts/query.py`
 
 Purpose: run a similarity search against FAISS and print top matches with previews.
 
@@ -86,7 +86,7 @@ Key flags:
 
 Example:
 ```
-python3 translator/query.py \
+python3 scripts/query.py \
   --query "scholarship eligibility for engineering students" \
   --top-k 5 \
   --embedding-model sentence-transformers/all-MiniLM-L6-v2
@@ -95,7 +95,7 @@ python3 translator/query.py \
 ---
 
 ### 4) Full RAG (Retrieve + LLM Answer)
-Script: `translator/rag.py`
+Script: `scripts/rag.py`
 
 Purpose: retrieve top-k chunks and have an LLM answer using only that context.
 
@@ -109,7 +109,7 @@ Key flags:
 Examples:
 ```
 # Groq
-python3 translator/rag.py \
+python3 scripts/rag.py \
   --query "entrance requirements for medical programs" \
   --top-k 4 \
   --embedding-model sentence-transformers/all-MiniLM-L6-v2 \
@@ -117,7 +117,7 @@ python3 translator/rag.py \
   --llm-model llama-3.3-70b-versatile
 
 # OpenAI
-python3 translator/rag.py \
+python3 scripts/rag.py \
   --query "scholarship eligibility for engineering students" \
   --top-k 4 \
   --embedding-model sentence-transformers/all-MiniLM-L6-v2 \
