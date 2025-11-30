@@ -29,3 +29,6 @@ tqdm
 pillow
 pytesseract
 langdetect
+transformers
+torch
+sentencepiece
