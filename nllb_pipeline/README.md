@@ -51,5 +51,21 @@ python nllb_pipeline/translate_nllb.py \
   --limit 500   # optional
 ```
 
-## Next stage (to implement)
-- Merger/formatter to emit bilingual JSONL/CSV aligned to sentence IDs for embeddings or RAG.
+## Stage 4: Embeddings (ready)
+- Script: `nllb_pipeline/embed_sentences.py`
+- Input: `processed_data/translated_sentences.jsonl`
+- Output: FAISS index + metadata in `vector_store/faiss_sentences/`.
+- By default embeds the translated English text; add `--no-translation` to embed original sentences.
+
+Run:
+```bash
+python nllb_pipeline/embed_sentences.py \
+  --input processed_data/translated_sentences.jsonl \
+  --output-dir vector_store/faiss_sentences \
+  --embedding-model sentence-transformers/all-MiniLM-L6-v2 \
+  --batch-size 64 \
+  --limit 1000   # optional
+```
+
+## Next stage (optional)
+- Merger/formatter to emit bilingual JSONL/CSV aligned to sentence IDs for RAG or analytics.
