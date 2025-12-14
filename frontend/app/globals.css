@@ -239,6 +239,13 @@ a {
   gap: 10px;
 }
 
+.composer.hero {
+  max-width: 760px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  background: var(--panel);
+}
+
 .textarea {
   width: 100%;
   resize: none;

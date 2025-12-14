@@ -19,7 +19,7 @@ class QueryRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=50, description="Number of neighbors to retrieve.")
     model: str = Field("gpt-4o-mini", description="LLM model name.")
     backend: str | None = Field(
-        default=None, description="LLM backend to use: groq or azure (falls back to env LLM_BACKEND)."
+        default="azure", description="LLM backend to use (fixed to azure in UI)."
     )
     temperature: float = Field(0.2, ge=0.0, le=1.0, description="LLM temperature.")
     return_contexts: bool = Field(

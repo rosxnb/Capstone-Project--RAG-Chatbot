@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
-const presets = [
-  { label: "Azure · gpt-4o-mini", value: "gpt-4o-mini", provider: "azure" },
-  { label: "Groq · Llama 3.3 70B", value: "llama-3.3-70b-versatile", provider: "groq" },
-  { label: "Groq · Llama 3.3 8B", value: "llama-3.3-8b-instant", provider: "groq" },
-];
+const defaultModel = "gpt-4o-mini";
 
 function relativeTime(iso) {
   if (!iso) return "";
@@ -31,8 +27,7 @@ export default function Page() {
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("Idle");
-  const [provider, setProvider] = useState("azure");
-  const [model, setModel] = useState(presets[0].value);
+  const [model, setModel] = useState(defaultModel);
   const [healthOk, setHealthOk] = useState(null);
   const [busy, setBusy] = useState(false);
   const [theme, setTheme] = useState("light");
@@ -86,7 +81,7 @@ export default function Page() {
     try {
       await apiFetch("/health");
       setHealthOk(true);
-      setStatus("Ready");
+      setStatus("");
     } catch (err) {
       setHealthOk(false);
       setStatus(err.message || "Health check failed");
@@ -131,17 +126,15 @@ export default function Page() {
     }
     setStatus("Creating chat...");
     try {
-      const data = await apiFetch("/sessions", {
+      const data = await apiFetch(`/sessions?token=${encodeURIComponent(token)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
       });
       setSessionId(data.id);
       setSessionName(data.name);
       setHistory([]);
       setInput("");
       await loadSessions();
-      setStatus("Ready");
+      setStatus("");
     } catch (err) {
       setStatus(err.message || "Could not create chat");
     }
@@ -151,10 +144,10 @@ export default function Page() {
     if (!token) return;
     if (!name.trim()) return;
     try {
-      await apiFetch(`/sessions/${id}/rename`, {
+      await apiFetch(`/sessions/${id}/rename?token=${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, token }),
+        body: JSON.stringify({ name }),
       });
       await loadSessions();
       if (id === sessionId) setSessionName(name);
@@ -186,14 +179,14 @@ export default function Page() {
     const trimmed = input.trim();
     if (!trimmed || busy) return;
     setBusy(true);
-    setStatus("Sending...");
+    setStatus("Thinking...");
     const optimisticHistory = [...history, { role: "user", content: trimmed }];
     setHistory(optimisticHistory);
     setInput("");
     try {
       const payload = {
         query: trimmed,
-        backend: provider,
+        backend: "azure",
         model,
         return_contexts: false,
         token,
@@ -209,18 +202,13 @@ export default function Page() {
       setSessionName(data.session_name || sessionName);
       await openSession(data.session_id);
       await loadSessions();
-      setStatus("Ready");
+      setStatus("");
     } catch (err) {
       setStatus(err.message || "Failed to send");
     } finally {
       setBusy(false);
     }
   };
-
-  const currentPresetLabel = useMemo(() => {
-    const match = presets.find((p) => p.value === model && p.provider === provider);
-    return match?.label;
-  }, [model, provider]);
 
   const applyTheme = (next) => {
     document.body.classList.remove("theme-dark", "theme-light");
@@ -244,46 +232,37 @@ export default function Page() {
   return (
     <div className="page">
       <aside className="sidebar panel">
-        <div className="header">
-          <div>
-            <div className="pill">
-              <span className={`dot ${healthOk ? "ok" : healthOk === false ? "bad" : ""}`} />
-              {healthOk === false ? "Backend offline" : "Backend ready"}
-            </div>
-            <p className="small" style={{ margin: "6px 0 0" }}>
-              Sessions
-            </p>
-          </div>
-          <button className="button secondary" onClick={newChat}>
-            New chat
-          </button>
-        </div>
-        <div className="controls" style={{ justifyContent: "space-between", marginTop: 8 }}>
-          <span className="pill">User: {username || "signed in"}</span>
-          <button
-            className="button secondary"
-            onClick={async () => {
-              if (token) {
-                try {
-                  await apiFetch(`/logout?token=${encodeURIComponent(token)}`, { method: "POST" });
-                } catch (_err) {
-                  // ignore logout errors
+        <div className="header" style={{ gap: 8 }}>
+          <div className="pill" style={{ marginTop: 6 }}>User: {username || "signed in"}</div>
+          <div className="controls" style={{ gap: 8 }}>
+            <button
+              className="button secondary"
+              onClick={async () => {
+                if (token) {
+                  try {
+                    await apiFetch(`/logout?token=${encodeURIComponent(token)}`, { method: "POST" });
+                  } catch (_err) {
+                    // ignore logout errors
+                  }
                 }
-              }
-              setToken(null);
-              window.localStorage.removeItem("token");
-              window.localStorage.removeItem("username");
-              setSessions([]);
-              setSessionId(null);
-              setSessionName("New chat");
-              setHistory([]);
-              setStatus("Logged out");
-              router.push("/login");
-            }}
-          >
-            Logout
-          </button>
+                setToken(null);
+                window.localStorage.removeItem("token");
+                window.localStorage.removeItem("username");
+                setSessions([]);
+                setSessionId(null);
+                setSessionName("New chat");
+                setHistory([]);
+                setStatus("Logged out");
+                router.push("/login");
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
+        <button className="button" onClick={newChat} style={{ width: "100%" }}>
+          New chat
+        </button>
         <div className="session-list">
           {sessions.length === 0 ? (
             <p className="small">No conversations yet.</p>
@@ -339,69 +318,53 @@ export default function Page() {
             </div>
           </div>
 
-        <div className="model-picker">
-          <div>
-            <label className="small">Provider</label>
-            <select
-              className="select"
-              value={provider}
-              onChange={(e) => {
-                setProvider(e.target.value);
-                const preset = presets.find((p) => p.provider === e.target.value);
-                if (preset) setModel(preset.value);
-              }}
-            >
-              <option value="groq">Groq</option>
-              <option value="azure">Azure OpenAI</option>
-            </select>
-          </div>
-          <div>
-            <label className="small">Model / deployment</label>
-            <input
-              className="input"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="llama-3.3-70b-versatile or your Azure deployment"
-              list="model-presets"
-            />
-            <datalist id="model-presets">
-              {presets.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </datalist>
-            {currentPresetLabel && <p className="small" style={{ marginTop: 6 }}>{currentPresetLabel}</p>}
-          </div>
-        </div>
+        <div className="pill" style={{ marginBottom: 8 }}>Backend: Azure OpenAI ({model})</div>
 
-        <div className="chat-shell">
-          <div className="chat-window" ref={chatWindowRef}>
-            {history.length === 0 ? (
-              <p className="small">Ask anything to start.</p>
-            ) : (
-              history.map((turn, idx) => (
+        {history.length === 0 ? (
+          <div className="chat-shell" style={{ justifyContent: "center", alignItems: "center" }}>
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
+              <div className="pill">New Chat</div>
+              <p className="small" style={{ marginTop: 6 }}>Your prompt will appear here once you send it.</p>
+            </div>
+            <div className="composer hero">
+              <textarea
+                className="textarea"
+                placeholder="Ask your questions ..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              <button className="button" onClick={sendMessage} disabled={busy || !input.trim()}>
+                {busy ? "Generating…" : "Send"}
+              </button>
+            </div>
+            <p className="small">Enter to send · Shift+Enter for a new line</p>
+          </div>
+        ) : (
+          <div className="chat-shell">
+            <div className="chat-window" ref={chatWindowRef}>
+              {history.map((turn, idx) => (
                 <div key={idx} className={`bubble ${turn.role === "user" ? "user" : "bot"}`}>
                   <h4>{turn.role === "user" ? "You" : "NepEd Bot"}</h4>
                   <div>{turn.content}</div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+            <div className="composer">
+              <textarea
+                className="textarea"
+                placeholder="Ask your questions ..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              <button className="button" onClick={sendMessage} disabled={busy || !input.trim()}>
+                {busy ? "Generating…" : "Send"}
+              </button>
+            </div>
+            <p className="small">Enter to send · Shift+Enter for a new line</p>
           </div>
-          <div className="composer">
-            <textarea
-              className="textarea"
-              placeholder="Message NepEd Bot"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <button className="button" onClick={sendMessage} disabled={busy || !input.trim()}>
-              {busy ? "Sending..." : "Send"}
-            </button>
-          </div>
-          <p className="small">Enter to send · Shift+Enter for a new line</p>
-        </div>
+        )}
       </main>
     </div>
   );
