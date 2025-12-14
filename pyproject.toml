@@ -36,6 +36,9 @@ dependencies = [
     "langdetect>=1.0.9",
     "transformers>=4.57.1",
     "sentencepiece>=0.2.1",
+    "torch>=2.2.2",
+    "fastapi>=0.124.2",
+    "uvicorn>=0.38.0",
 ]
 
 [tool.uv]
