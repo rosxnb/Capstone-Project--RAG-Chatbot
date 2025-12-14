@@ -11,6 +11,7 @@ class SessionMeta(BaseModel):
     name: str
     created_at: str
     updated_at: str
+    owner: str | None = None
 
 
 class QueryRequest(BaseModel):
@@ -24,6 +25,7 @@ class QueryRequest(BaseModel):
     return_contexts: bool = Field(
         False, description="Return retrieved contexts alongside the answer."
     )
+    token: str | None = Field(default=None, description="Auth token for the current user.")
     session_id: str | None = Field(
         default=None, description="Conversation session identifier to preserve chat history."
     )
@@ -51,6 +53,8 @@ class QueryResponse(BaseModel):
     session_id: str
     session_name: str
     contexts: List[str] | None = None
+    web_used: bool = False
+    web_sources: List[dict] | None = None
 
 
 class SessionListResponse(BaseModel):
@@ -64,3 +68,18 @@ class SessionHistoryResponse(BaseModel):
 
 class RenameSessionRequest(BaseModel):
     name: str
+
+
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    token: str
+    username: str

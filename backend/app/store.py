@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Dict, List
 from uuid import uuid4
 
-from .config import CONVERSATIONS_DIR, SESSIONS_FILE
+from .config import CONVERSATIONS_DIR, SESSIONS_FILE, USERS_FILE
 from .models import SessionMeta
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,22 @@ def write_sessions(sessions: Dict[str, SessionMeta]) -> None:
         json.dump([meta.model_dump() for meta in sessions.values()], f, ensure_ascii=False, indent=2)
 
 
+def read_users() -> Dict[str, Dict[str, str]]:
+    if not USERS_FILE.exists():
+        return {}
+    try:
+        with USERS_FILE.open(encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
+
+
+def write_users(users: Dict[str, Dict[str, str]]) -> None:
+    USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with USERS_FILE.open("w", encoding="utf-8") as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
+
+
 def load_history(session_id: str) -> List[Dict[str, str]]:
     path = CONVERSATIONS_DIR / f"{session_id}.jsonl"
     history: List[Dict[str, str]] = []
@@ -77,7 +93,7 @@ def delete_history(session_id: str) -> None:
             logger.warning("Failed to delete conversation file %s", path)
 
 
-def create_session(name: str | None = None) -> SessionMeta:
+def create_session(name: str | None = None, owner: str | None = None) -> SessionMeta:
     sessions = read_sessions()
     session_id = uuid4().hex
     timestamp = now_iso()
@@ -86,16 +102,19 @@ def create_session(name: str | None = None) -> SessionMeta:
         name=name or "New chat",
         created_at=timestamp,
         updated_at=timestamp,
+        owner=owner,
     )
     sessions[session_id] = meta
     write_sessions(sessions)
     return meta
 
 
-def upsert_session_from_query(session_id: str | None, session_name: str | None, query: str) -> SessionMeta:
+def upsert_session_from_query(session_id: str | None, session_name: str | None, query: str, owner: str | None) -> SessionMeta:
     sessions = read_sessions()
     if session_id and session_id in sessions:
         session_meta = sessions[session_id]
+        if owner and session_meta.owner and session_meta.owner != owner:
+            raise PermissionError("Session does not belong to this user.")
         requested_name = (session_name or "").strip()
         if requested_name and requested_name.lower() != "new chat":
             session_meta.name = requested_name
@@ -109,6 +128,7 @@ def upsert_session_from_query(session_id: str | None, session_name: str | None, 
             name=(session_name or "").strip() or summarize_session_name(query),
             created_at=now_iso(),
             updated_at=now_iso(),
+            owner=owner,
         )
     sessions[session_id] = session_meta
     write_sessions(sessions)
